@@ -176,18 +176,17 @@ const WORKSHEET_MAP = {
 async function readWorksheetValue(dashboard, wsName) {
   try {
     const ws = dashboard.worksheets.find(w => w.name === wsName);
-    if (!ws) return null;
+    if (!ws) { console.warn(`Worksheet not found: ${wsName}`); return null; }
     const dt = await ws.getSummaryDataAsync();
     const cols = dt.columns.map(c => c.fieldName);
     const rows = dt.data;
     if (!rows.length) return null;
-    const values = {};
-    cols.forEach((col, i) => {
-      const raw = rows[0][i];
-      values[col] = raw.value != null ? parseFloat(raw.value) : (raw.nativeValue != null ? parseFloat(raw.nativeValue) : null);
-      if (isNaN(values[col])) values[col] = raw.formattedValue || raw.value;
+    const result = [];
+    rows[0].forEach((cell, i) => {
+      const v = cell.nativeValue != null ? parseFloat(cell.nativeValue) : parseFloat(cell.value);
+      result.push({ name: cols[i], value: isNaN(v) ? null : v, formatted: cell.formattedValue });
     });
-    return values;
+    return result;
   } catch (e) {
     console.warn(`Failed to read ${wsName}:`, e);
     return null;
@@ -289,18 +288,24 @@ const App = () => {
   const loadData = useCallback(async () => {
     try {
       if (typeof tableau === 'undefined' || !tableau.extensions) {
+        console.log('Tableau Extensions API not available — using demo data');
         setData(getDemoData());
         setLoading(false);
         return;
       }
       await tableau.extensions.initializeAsync();
       const dashboard = tableau.extensions.dashboardContent.dashboard;
+      console.log('Dashboard:', dashboard.name);
+      console.log('Worksheets:', dashboard.worksheets.map(w => w.name));
       const results = {};
       for (const [key, wsName] of Object.entries(WORKSHEET_MAP)) {
         results[key] = await readWorksheetValue(dashboard, wsName);
+        if (results[key]) console.log(`${key}: ${results[key].map(c => c.formatted).join(' | ')}`);
       }
       const mapped = mapTableauData(results);
+      console.log('Mapped data:', JSON.stringify(mapped).substring(0, 300));
       setData(mapped);
+      setError(null);
       setLoading(false);
     } catch (e) {
       console.error('Init error:', e);
@@ -335,41 +340,47 @@ const App = () => {
 };
 
 function mapTableauData(r) {
-  const getNum = (obj, ...keys) => {
-    if (!obj) return null;
-    for (const k of keys) {
-      const v = obj[k];
-      if (v != null && !isNaN(v)) return parseFloat(v);
-    }
-    for (const k of Object.keys(obj)) {
-      const v = obj[k];
-      if (v != null && !isNaN(v)) return parseFloat(v);
-    }
-    return null;
-  };
+  const val = (arr, idx) => arr && arr[idx] ? arr[idx].value : null;
+  const fmt = (arr, idx) => arr && arr[idx] ? arr[idx].formatted : null;
+  const pct = (main, diff) => (main && diff && main !== 0) ? (diff / main) * 100 : null;
+
+  const syV = val(r.salesYtd, 0), syD = val(r.salesYtd, 1);
+  const smV = val(r.salesMtd, 0), smD = val(r.salesMtd, 1);
+  const wsyV = val(r.wsYtd, 0), wsyD = val(r.wsYtd, 1);
+  const wsmV = val(r.wsMtd, 0), wsmD = val(r.wsMtd, 1);
+  const qsyV = val(r.qwsYtd, 0), qsyD = val(r.qwsYtd, 1);
+  const qsmV = val(r.qwsMtd, 0), qsmD = val(r.qwsMtd, 1);
+  const spyV = val(r.supplyYtd, 0), spyD = val(r.supplyYtd, 1);
+  const spmV = val(r.supplyMtd, 0);
+  const sprV = val(r.supplyRcvd, 0), sprD = val(r.supplyRcvd, 1);
+  const iyV = val(r.invYtd, 0), iyD = val(r.invYtd, 1);
+  const imV = val(r.invMtd, 0), imD = val(r.invMtd, 1);
+  const icyV = val(r.invCadYtd, 0), icyD = val(r.invCadYtd, 1);
+  const icmV = val(r.invCadMtd, 0), icmD = val(r.invCadMtd, 1);
 
   return {
-    salesYtdVal: getNum(r.salesYtd),
-    salesYtdDiff: null, salesYtdPct: null,
-    salesMtdVal: getNum(r.salesMtd),
-    salesMtdDiff: null, salesMtdPct: null,
-    wsYtdVal: getNum(r.wsYtd), wsYtdDiff: null, wsYtdPct: null,
-    wsMtdVal: getNum(r.wsMtd), wsMtdDiff: null, wsMtdPct: null,
-    qwsYtdVal: getNum(r.qwsYtd), qwsYtdDiff: null, qwsYtdPct: null,
-    qwsMtdVal: getNum(r.qwsMtd), qwsMtdDiff: null, qwsMtdPct: null,
-    orderbookVal: getNum(r.orderbook), orderbookProjectVal: getNum(r.orderbookChannel),
-    orderbookProjectPct: null, orderbookOutletVal: getNum(r.orderbookOutlet),
-    orderbookOutletPct: null, orderbookUpgradeVal: getNum(r.orderbookUpgrade),
-    orderbookUpgradePct: null,
-    supplyYtdVal: getNum(r.supplyYtd), supplyYtdDiff: null, supplyYtdPct: null,
-    supplyMtdVal: getNum(r.supplyMtd),
-    supplyRcvdVal: getNum(r.supplyRcvd), supplyRcvdDiff: null, supplyRcvdPct: null,
-    invYtdVal: getNum(r.invYtd), invYtdDiff: null, invYtdPct: null,
-    invMtdVal: getNum(r.invMtd), invMtdDiff: null, invMtdPct: null,
-    invCadYtdVal: getNum(r.invCadYtd), invCadYtdDiff: null, invCadYtdPct: null,
-    invCadMtdVal: getNum(r.invCadMtd), invCadMtdDiff: null, invCadMtdPct: null,
-    excessNewVal: getNum(r.excessNew), excessNewQty: null,
-    excessOutletVal: getNum(r.excessOutlet), excessOutletQty: null,
+    salesYtdVal: syV, salesYtdDiff: syD, salesYtdPct: syD && syV ? (syD / (syV - syD)) * 100 : null,
+    salesMtdVal: smV, salesMtdDiff: smD, salesMtdPct: smD && smV ? (smD / (smV - smD)) * 100 : null,
+    wsYtdVal: wsyV, wsYtdDiff: wsyD, wsYtdPct: wsyD && wsyV ? (wsyD / (wsyV - wsyD)) * 100 : null,
+    wsMtdVal: wsmV, wsMtdDiff: wsmD, wsMtdPct: wsmD && wsmV ? (wsmD / (wsmV - wsmD)) * 100 : null,
+    qwsYtdVal: qsyV, qwsYtdDiff: qsyD, qwsYtdPct: qsyD && qsyV ? (qsyD / (qsyV - qsyD)) * 100 : null,
+    qwsMtdVal: qsmV, qwsMtdDiff: qsmD, qwsMtdPct: qsmD && qsmV ? (qsmD / (qsmV - qsmD)) * 100 : null,
+    orderbookVal: val(r.orderbook, 0),
+    orderbookProjectVal: val(r.orderbookChannel, 0),
+    orderbookProjectPct: fmt(r.orderbookChannel, 1),
+    orderbookOutletVal: val(r.orderbookOutlet, 0),
+    orderbookOutletPct: fmt(r.orderbookOutlet, 1),
+    orderbookUpgradeVal: val(r.orderbookUpgrade, 0),
+    orderbookUpgradePct: fmt(r.orderbookUpgrade, 1),
+    supplyYtdVal: spyV, supplyYtdDiff: spyD, supplyYtdPct: spyD && spyV ? (spyD / (spyV - spyD)) * 100 : null,
+    supplyMtdVal: spmV,
+    supplyRcvdVal: sprV, supplyRcvdDiff: sprD, supplyRcvdPct: sprD && sprV ? (sprD / (sprV - sprD)) * 100 : null,
+    invYtdVal: iyV, invYtdDiff: iyD, invYtdPct: iyD && iyV ? (iyD / (iyV - iyD)) * 100 : null,
+    invMtdVal: imV, invMtdDiff: imD, invMtdPct: imD && imV ? (imD / (imV - imD)) * 100 : null,
+    invCadYtdVal: icyV, invCadYtdDiff: icyD, invCadYtdPct: icyD && icyV ? (icyD / (icyV - icyD)) * 100 : null,
+    invCadMtdVal: icmV, invCadMtdDiff: icmD, invCadMtdPct: icmD && icmV ? (icmD / (icmV - icmD)) * 100 : null,
+    excessNewVal: val(r.excessNew, 0), excessNewQty: fmt(r.excessNew, 1),
+    excessOutletVal: val(r.excessOutlet, 0), excessOutletQty: fmt(r.excessOutlet, 1),
   };
 }
 
