@@ -231,7 +231,7 @@ const OverviewScreen = ({ data, go }) => {
     ]},
   ];
   return (
-    <div style={{ padding:'22px 26px', display:'flex', flexDirection:'column', gap:24 }}>
+    <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:24 }}>
       {SECS.map(sec => (
         <div key={sec.id}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
@@ -242,11 +242,11 @@ const OverviewScreen = ({ data, go }) => {
               </button>
             )}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:10 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
             {sec.metrics.map((m, i) => (
               <div key={i}
                 onClick={sec.link ? () => go(sec.id) : undefined}
-                style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, padding:'14px 16px', cursor:sec.link ? 'pointer' : 'default', transition:'border-color 150ms, box-shadow 150ms' }}
+                style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, padding:'12px 14px', cursor:sec.link ? 'pointer' : 'default', transition:'border-color 150ms, box-shadow 150ms' }}
                 onMouseEnter={e => { if (sec.link) { e.currentTarget.style.borderColor=C.blue; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,41,0.06)'; }}}
                 onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.boxShadow='none'; }}>
                 <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:C.fg4, marginBottom:7 }}>{m.label}</div>
@@ -324,7 +324,7 @@ const App = () => {
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <Topbar title={nav?.label || ''}/>
         {error && <div style={{padding:'4px 22px',fontSize:11,color:C.fg4,background:C.bgSub}}>Using demo data — extension not connected to Tableau worksheet</div>}
-        <div style={{ flex:1, overflowY:'auto', background:C.bgSub }}>
+        <div style={{ flex:1, overflowY:'auto', overflowX:'hidden', background:C.bgSub }}>
           {SCREENS[route] || <Placeholder title={nav?.label}/>}
         </div>
       </div>
