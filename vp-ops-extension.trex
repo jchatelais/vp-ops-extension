@@ -7,7 +7,7 @@
     <author name="Maroline Distributing" email="jacky.chatelais@maroline.com" organization="Maroline Distributing Inc" website="https://maroline.com"/>
     <min-api-version>1.7</min-api-version>
     <source-location>
-      <url>https://maroline-distributing.github.io/vp-ops-extension/index.html</url>
+      <url>https://jchatelais.github.io/vp-ops-extension/index.html</url>
     </source-location>
     <icon>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlhJREFUOI2Nkt9vy1EYh5/3nfa7fm+3doxtYhMTQ4yLkblAJP4ArhBXbvwJXHClSFwgEpciSERi0e0iiSWbhBjZbBpjWNdO1/a79vy4EBe29EmesznJec57Tm7hH2t+c/WBwHkgBTgmnhnn3Ofl5mb2rl0BnBMc+MFJ3v6982BHRuKT5BfGhMYBuMrCIkmE8NSXE5v/r+bGHl8KhGuvUQhJcMb2ghcjYwHg6PjRr7OBzF7x03fGZr4A7J/f9m59LRFStLFwGJfii3M/+EfAQnO+Dk7e3xTuO8XQGl0k0Ev8v7cLAey/9OQfPDA2OJ6/K0A</icon>
   </dashboard-extension>
