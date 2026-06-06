@@ -287,35 +287,18 @@ const App = () => {
 
   const loadData = useCallback(async () => {
     try {
-      // Wait up to 5 seconds for Tableau Extensions API to become available
-      let apiReady = typeof tableau !== 'undefined' && tableau.extensions;
-      if (!apiReady) {
-        for (let i = 0; i < 10; i++) {
-          await new Promise(r => setTimeout(r, 500));
-          apiReady = typeof tableau !== 'undefined' && tableau.extensions;
-          if (apiReady) break;
-        }
-      }
-      if (!apiReady) {
-        console.log('Tableau Extensions API not available after 5s — using demo data');
-        setData(getDemoData());
+      // Fetch live data from data.json (updated by refresh script)
+      const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+      const resp = await fetch(baseUrl + '/data.json?t=' + Date.now());
+      if (resp.ok) {
+        const liveData = await resp.json();
+        console.log('Live data loaded from data.json, last updated:', liveData.lastUpdated);
+        setData(liveData);
         setLoading(false);
         return;
       }
-      console.log('Tableau Extensions API found, initializing...');
-      await tableau.extensions.initializeAsync();
-      const dashboard = tableau.extensions.dashboardContent.dashboard;
-      console.log('Dashboard:', dashboard.name);
-      console.log('Worksheets:', dashboard.worksheets.map(w => w.name));
-      const results = {};
-      for (const [key, wsName] of Object.entries(WORKSHEET_MAP)) {
-        results[key] = await readWorksheetValue(dashboard, wsName);
-        if (results[key]) console.log(`${key}: ${results[key].map(c => c.formatted).join(' | ')}`);
-      }
-      const mapped = mapTableauData(results);
-      console.log('Mapped data:', JSON.stringify(mapped).substring(0, 300));
-      setData(mapped);
-      setError(null);
+      console.log('data.json not available, using demo data');
+      setData(getDemoData());
       setLoading(false);
     } catch (e) {
       console.error('Init error:', e);
