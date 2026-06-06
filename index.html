@@ -210,7 +210,7 @@ const OverviewScreen = ({ data, go }) => {
       {label:'Total Orderbook', value: d.orderbookVal, sub:'Current pipeline'},
       {label:'Project', value: d.orderbookProjectVal, sub: d.orderbookProjectPct ? `${d.orderbookProjectPct}% of orderbook` : ''},
       {label:'Outlet', value: d.orderbookOutletVal, sub: d.orderbookOutletPct ? `${d.orderbookOutletPct}% of orderbook` : ''},
-      {label:'Project / Upgrade', value: d.orderbookUpgradeVal, sub: d.orderbookUpgradePct ? `${d.orderbookUpgradePct}% share` : ''},
+      {label:'Proj / Upgrade', value: d.orderbookUpgradeVal, sub: d.orderbookUpgradePct ? `${d.orderbookUpgradePct}% share` : ''},
     ]},
     { id:'supply-chain', title:'Supply Chain', link:false, metrics:[
       {label:'YTD Receipts', value: d.supplyYtdVal, delta: d.supplyYtdPct, sub: d.supplyYtdDiff ? `${abbr(d.supplyYtdDiff)} vs Prev YTD` : ''},
@@ -246,13 +246,13 @@ const OverviewScreen = ({ data, go }) => {
             {sec.metrics.map((m, i) => (
               <div key={i}
                 onClick={sec.link ? () => go(sec.id) : undefined}
-                style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, padding:'12px 14px', cursor:sec.link ? 'pointer' : 'default', transition:'border-color 150ms, box-shadow 150ms' }}
+                style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, padding:'10px 12px', overflow:'hidden', cursor:sec.link ? 'pointer' : 'default', transition:'border-color 150ms, box-shadow 150ms' }}
                 onMouseEnter={e => { if (sec.link) { e.currentTarget.style.borderColor=C.blue; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,41,0.06)'; }}}
                 onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.boxShadow='none'; }}>
-                <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:C.fg4, marginBottom:7 }}>{m.label}</div>
-                <div style={{ fontSize:21, fontWeight:700, color:C.navy, fontVariantNumeric:'tabular-nums', lineHeight:1.1, marginBottom:8 }}>{m.value != null ? abbr(m.value) : '...'}</div>
+                <div style={{ fontSize:9, fontWeight:600, letterSpacing:'0.05em', textTransform:'uppercase', color:C.fg4, marginBottom:5, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.label}</div>
+                <div style={{ fontSize:19, fontWeight:700, color:C.navy, fontVariantNumeric:'tabular-nums', lineHeight:1.1, marginBottom:6 }}>{m.value != null ? abbr(m.value) : '...'}</div>
                 {m.delta !== undefined && m.delta !== null && <Delta v={m.delta}/>}
-                {m.sub && <div style={{ fontSize:11, color:C.fg4, marginTop:6 }}>{m.sub}</div>}
+                {m.sub && <div style={{ fontSize:10, color:C.fg4, marginTop:4, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.sub}</div>}
               </div>
             ))}
           </div>
