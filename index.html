@@ -242,7 +242,7 @@ const OverviewScreen = ({ data, go }) => {
               </button>
             )}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns: sec.metrics.length >= 4 ? 'repeat(4, 1fr)' : `repeat(${sec.metrics.length}, 1fr)`, gap:8 }}>
             {sec.metrics.map((m, i) => (
               <div key={i}
                 onClick={sec.link ? () => go(sec.id) : undefined}
