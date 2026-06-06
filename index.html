@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VP Operations Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://extensions.tableauusercontent.com/tableau.extensions.1.latest.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; overflow: hidden; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F7F8FB; color: #0F1729; -webkit-font-smoothing: antialiased; }
+  button, select, input { font-family: inherit; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-thumb { background: #D2D8E2; border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+const C = {
+  navy:'#002060', blue:'#0050E0', blueSoft:'#E6EEFD',
+  fg1:'#0F1729', fg2:'#3B4456', fg3:'#5B6577', fg4:'#8A93A4',
+  bg:'#FFFFFF', bgSub:'#F7F8FB', bgHov:'#F2F5FC',
+  border:'#E6E9EF', borderS:'#D2D8E2',
+  green:'#0F8A4F', greenBg:'#E6F4EC',
+  red:'#D6332B', redBg:'#FCE6E5',
+};
+
+const abbr = v => {
+  if (v == null || isNaN(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e9) return `$${(v/1e9).toFixed(1)}B`;
+  if (a >= 1e6) return `$${(v/1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `$${(v/1e3).toFixed(0)}K`;
+  return `$${v.toFixed(0)}`;
+};
+const pctFmt = v => {
+  if (v == null || isNaN(v)) return '—';
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+};
+
+const UpArr = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="2,7 5,3 8,7"/>
+  </svg>
+);
+const DnArr = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="2,3 5,7 8,3"/>
+  </svg>
+);
+const ChevR = ({ sz = 11 }) => (
+  <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+const NavIco = ({ name }) => {
+  const d = {
+    overview: "M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z",
+    sales: "M22 7L13.5 15.5l-5-5L2 18M16 7h6v6",
+    ws: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z",
+    book: "M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z",
+    truck: "M1 3h15v13H1zM16 8h4l3 3v5h-7V8z",
+    pkg: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12",
+    archive: "M21 8v13H3V8M1 3h22v5H1zM10 12h4",
+    cart: "M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6",
+  };
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d={d[name] || "M12 12h.01"}/>
+    </svg>
+  );
+};
+
+const Delta = ({ v }) => {
+  if (v == null || isNaN(v)) return null;
+  const up = v >= 0;
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:3, background:up?C.greenBg:C.redBg, color:up?C.green:C.red, padding:'2px 7px', borderRadius:999, fontSize:11, fontWeight:600, lineHeight:1.5 }}>
+      {up ? <UpArr/> : <DnArr/>} {pctFmt(v)}
+    </span>
+  );
+};
+
+const NAV = [
+  {id:'overview', label:'VP Operations', icon:'overview'},
+  {id:'sales', label:'Sales', icon:'sales'},
+  {id:'written-sales', label:'Written Sales', icon:'ws'},
+  {id:'orderbook', label:'Orderbook', icon:'book'},
+  {id:'supply-chain', label:'Supply Chain', icon:'truck'},
+  {id:'inventory', label:'Inventory', icon:'pkg'},
+  {id:'inventory-cad', label:'Inventory CAD', icon:'pkg'},
+  {id:'excess', label:'Excess', icon:'archive'},
+  {id:'procurement', label:'Procurement', icon:'cart'},
+];
+
+const Sidebar = ({ active, go }) => (
+  <aside style={{ width:220, background:C.bg, borderRight:`1px solid ${C.border}`, display:'flex', flexDirection:'column', height:'100vh', position:'sticky', top:0, flexShrink:0 }}>
+    <div style={{ padding:'15px 18px 13px', borderBottom:`1px solid ${C.border}` }}>
+      <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.09em', textTransform:'uppercase', color:C.navy }}>Sub-Zero &middot; Wolf &middot; Cove</div>
+      <div style={{ fontSize:12, fontWeight:500, color:C.fg3, marginTop:3 }}>Operations Dashboard</div>
+    </div>
+    <nav style={{ flex:1, padding:'8px', display:'flex', flexDirection:'column', gap:1, overflowY:'auto' }}>
+      {NAV.map(n => {
+        const on = active === n.id;
+        return (
+          <button key={n.id} onClick={() => go(n.id)} style={{
+            display:'flex', alignItems:'center', gap:9, padding:'9px 11px', borderRadius:6,
+            fontSize:13, border:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit',
+            fontWeight:on ? 600 : 500, background:on ? C.blue : 'transparent',
+            color:on ? '#fff' : C.fg2, transition:'all 150ms ease',
+          }}
+          onMouseEnter={e => { if (!on) { e.currentTarget.style.background=C.bgHov; e.currentTarget.style.color=C.fg1; } }}
+          onMouseLeave={e => { if (!on) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color=C.fg2; } }}>
+            <span style={{ color:on ? 'rgba(255,255,255,0.75)' : C.fg4, display:'flex', flexShrink:0 }}>
+              <NavIco name={n.icon}/>
+            </span>
+            {n.label}
+          </button>
+        );
+      })}
+    </nav>
+    <div style={{ padding:'10px 18px', borderTop:`1px solid ${C.border}`, fontSize:10, color:C.fg4 }}>Data via Tableau Bridge</div>
+  </aside>
+);
+
+const Topbar = ({ title }) => {
+  const now = new Date();
+  const dateStr = `YTD ${now.getFullYear()} · ${now.toLocaleString('en',{month:'short'})} ${now.getDate()}`;
+  return (
+    <div style={{ height:54, background:C.bg, borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', padding:'0 22px', gap:10, flexShrink:0 }}>
+      <div style={{ flex:1, fontSize:15, fontWeight:700, color:C.navy }}>{title}</div>
+      <span style={{ fontSize:11, color:C.fg4, marginRight:4 }}>{dateStr}</span>
+      <select style={{ fontSize:12, border:`1px solid ${C.border}`, borderRadius:6, padding:'6px 10px', color:C.fg2, background:C.bg, cursor:'pointer', outline:'none' }}>
+        <option>All Channels</option><option>Dealer</option><option>Retail</option><option>Project</option>
+      </select>
+      <button style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 11px', border:`1px solid ${C.border}`, borderRadius:6, background:C.bg, cursor:'pointer', fontSize:12, color:C.fg2 }}>
+        Filters
+      </button>
+      <button style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 11px', border:`1px solid ${C.border}`, borderRadius:6, background:C.bg, cursor:'pointer', fontSize:12, color:C.fg2 }}>
+        Export
+      </button>
+    </div>
+  );
+};
+
+const WORKSHEET_MAP = {
+  salesYtd:        'Values Year (sales main)',
+  salesMtd:        'Values Month (sales main)',
+  wsYtd:           'YTD Total Written S (main)',
+  wsMtd:           'MTD Total Written S (main)',
+  qwsYtd:          'YTD Written S (main)',
+  qwsMtd:          'MTD Written S (main)',
+  orderbook:       'Total Order Book',
+  orderbookOutlet: 'Total Outlet Order Book',
+  orderbookChannel:'Total Chanel',
+  orderbookUpgrade:'Total Project / UPGRADE',
+  supplyYtd:       'Values Year Supply (main)',
+  supplyMtd:       'Values Month Supply (main)',
+  supplyRcvd:      'Values Month Rcvd & to rcv (main)',
+  invYtd:          'Values Year Inv (main)',
+  invMtd:          'Values Month Inv (main)',
+  invCadYtd:       'Values Year Inv CAD (main)',
+  invCadMtd:       'Values Month Inv CAD (main)',
+  excessNew:       'New (2)',
+  excessOutlet:    'Outlet (2)',
+};
+
+async function readWorksheetValue(dashboard, wsName) {
+  try {
+    const ws = dashboard.worksheets.find(w => w.name === wsName);
+    if (!ws) return null;
+    const dt = await ws.getSummaryDataAsync();
+    const cols = dt.columns.map(c => c.fieldName);
+    const rows = dt.data;
+    if (!rows.length) return null;
+    const values = {};
+    cols.forEach((col, i) => {
+      const raw = rows[0][i];
+      values[col] = raw.value != null ? parseFloat(raw.value) : (raw.nativeValue != null ? parseFloat(raw.nativeValue) : null);
+      if (isNaN(values[col])) values[col] = raw.formattedValue || raw.value;
+    });
+    return values;
+  } catch (e) {
+    console.warn(`Failed to read ${wsName}:`, e);
+    return null;
+  }
+}
+
+const OverviewScreen = ({ data, go }) => {
+  const d = data || {};
+  const SECS = [
+    { id:'sales', title:'Sales', link:true, metrics:[
+      {label:'YTD Sales', value: d.salesYtdVal, delta: d.salesYtdPct, sub: d.salesYtdDiff ? `${abbr(d.salesYtdDiff)} vs Prev YTD` : ''},
+      {label:'MTD Sales', value: d.salesMtdVal, delta: d.salesMtdPct, sub: d.salesMtdDiff ? `${abbr(d.salesMtdDiff)} vs Prev MTD` : ''},
+    ]},
+    { id:'written-sales', title:'Written Sales', link:true, metrics:[
+      {label:'WS YTD', value: d.wsYtdVal, delta: d.wsYtdPct, sub: d.wsYtdDiff ? `${abbr(d.wsYtdDiff)} vs Prev YTD` : ''},
+      {label:'WS MTD', value: d.wsMtdVal, delta: d.wsMtdPct, sub: d.wsMtdDiff ? `${abbr(d.wsMtdDiff)} vs Prev MTD` : ''},
+      {label:'QWS YTD', value: d.qwsYtdVal, delta: d.qwsYtdPct, sub: d.qwsYtdDiff ? `${abbr(d.qwsYtdDiff)} vs Prev YTD` : ''},
+      {label:'QWS MTD', value: d.qwsMtdVal, delta: d.qwsMtdPct, sub: d.qwsMtdDiff ? `${abbr(d.qwsMtdDiff)} vs Prev MTD` : ''},
+    ]},
+    { id:'orderbook', title:'Orderbook', link:false, metrics:[
+      {label:'Total Orderbook', value: d.orderbookVal, sub:'Current pipeline'},
+      {label:'Project', value: d.orderbookProjectVal, sub: d.orderbookProjectPct ? `${d.orderbookProjectPct}% of orderbook` : ''},
+      {label:'Outlet', value: d.orderbookOutletVal, sub: d.orderbookOutletPct ? `${d.orderbookOutletPct}% of orderbook` : ''},
+      {label:'Project / Upgrade', value: d.orderbookUpgradeVal, sub: d.orderbookUpgradePct ? `${d.orderbookUpgradePct}% share` : ''},
+    ]},
+    { id:'supply-chain', title:'Supply Chain', link:false, metrics:[
+      {label:'YTD Receipts', value: d.supplyYtdVal, delta: d.supplyYtdPct, sub: d.supplyYtdDiff ? `${abbr(d.supplyYtdDiff)} vs Prev YTD` : ''},
+      {label:'MTD Receipts', value: d.supplyMtdVal, sub:'vs Prev MTD'},
+      {label:'Month RCVD & to RCV', value: d.supplyRcvdVal, delta: d.supplyRcvdPct, sub: d.supplyRcvdDiff ? `${abbr(d.supplyRcvdDiff)} vs Prev Month` : ''},
+    ]},
+    { id:'excess', title:'Excess', link:false, metrics:[
+      {label:'New Excess', value: d.excessNewVal, sub: d.excessNewQty ? `${d.excessNewQty} units` : ''},
+      {label:'Outlet Excess', value: d.excessOutletVal, sub: d.excessOutletQty ? `${d.excessOutletQty} units` : ''},
+    ]},
+    { id:'inventory', title:'Inventory', link:false, metrics:[
+      {label:'YTD', value: d.invYtdVal, delta: d.invYtdPct, sub: d.invYtdDiff ? `${abbr(d.invYtdDiff)} vs LY LMV` : ''},
+      {label:'MTD', value: d.invMtdVal, delta: d.invMtdPct, sub: d.invMtdDiff ? `${abbr(d.invMtdDiff)} vs Prev MLV` : ''},
+    ]},
+    { id:'inventory-cad', title:'Inventory CAD', link:false, metrics:[
+      {label:'YTD', value: d.invCadYtdVal, delta: d.invCadYtdPct, sub: d.invCadYtdDiff ? `${abbr(d.invCadYtdDiff)} vs LY LMV` : ''},
+      {label:'MTD', value: d.invCadMtdVal, delta: d.invCadMtdPct, sub: d.invCadMtdDiff ? `${abbr(d.invCadMtdDiff)} vs Prev MLV` : ''},
+    ]},
+  ];
+  return (
+    <div style={{ padding:'22px 26px', display:'flex', flexDirection:'column', gap:24 }}>
+      {SECS.map(sec => (
+        <div key={sec.id}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.07em', textTransform:'uppercase', color:C.fg4 }}>{sec.title}</div>
+            {sec.link && (
+              <button onClick={() => go(sec.id)} style={{ fontSize:11, color:C.blue, background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:3, fontWeight:500, padding:0 }}>
+                View detail <ChevR sz={10}/>
+              </button>
+            )}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(188px, 1fr))', gap:10 }}>
+            {sec.metrics.map((m, i) => (
+              <div key={i}
+                onClick={sec.link ? () => go(sec.id) : undefined}
+                style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, padding:'14px 16px', cursor:sec.link ? 'pointer' : 'default', transition:'border-color 150ms, box-shadow 150ms' }}
+                onMouseEnter={e => { if (sec.link) { e.currentTarget.style.borderColor=C.blue; e.currentTarget.style.boxShadow='0 2px 8px rgba(15,23,41,0.06)'; }}}
+                onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.boxShadow='none'; }}>
+                <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:C.fg4, marginBottom:7 }}>{m.label}</div>
+                <div style={{ fontSize:21, fontWeight:700, color:C.navy, fontVariantNumeric:'tabular-nums', lineHeight:1.1, marginBottom:8 }}>{m.value != null ? abbr(m.value) : '...'}</div>
+                {m.delta !== undefined && m.delta !== null && <Delta v={m.delta}/>}
+                {m.sub && <div style={{ fontSize:11, color:C.fg4, marginTop:6 }}>{m.sub}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const Placeholder = ({ title }) => (
+  <div style={{ padding:32, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, marginTop:48 }}>
+    <div style={{ width:48, height:48, borderRadius:12, background:C.bgSub, border:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.fg4} strokeWidth="1.5" strokeLinecap="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+    </div>
+    <div style={{ fontSize:14, fontWeight:600, color:C.fg2 }}>{title}</div>
+    <div style={{ fontSize:12, color:C.fg4 }}>Detail view — use Tableau tabs for full charts.</div>
+  </div>
+);
+
+const LoadingScreen = () => (
+  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', flexDirection:'column', gap:12 }}>
+    <div style={{ fontSize:16, fontWeight:600, color:C.navy }}>Loading dashboard data...</div>
+    <div style={{ fontSize:12, color:C.fg4 }}>Reading from Tableau worksheets</div>
+  </div>
+);
+
+const App = () => {
+  const [route, setRoute] = useState('overview');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      if (typeof tableau === 'undefined' || !tableau.extensions) {
+        setData(getDemoData());
+        setLoading(false);
+        return;
+      }
+      await tableau.extensions.initializeAsync();
+      const dashboard = tableau.extensions.dashboardContent.dashboard;
+      const results = {};
+      for (const [key, wsName] of Object.entries(WORKSHEET_MAP)) {
+        results[key] = await readWorksheetValue(dashboard, wsName);
+      }
+      const mapped = mapTableauData(results);
+      setData(mapped);
+      setLoading(false);
+    } catch (e) {
+      console.error('Init error:', e);
+      setError(e.message);
+      setData(getDemoData());
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const nav = NAV.find(n => n.id === route);
+
+  if (loading) return <LoadingScreen/>;
+
+  const SCREENS = {
+    'overview': <OverviewScreen data={data} go={setRoute}/>,
+  };
+
+  return (
+    <div style={{ display:'flex', height:'100vh', overflow:'hidden', fontFamily:"'Inter',system-ui,sans-serif" }}>
+      <Sidebar active={route} go={setRoute}/>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        <Topbar title={nav?.label || ''}/>
+        {error && <div style={{padding:'4px 22px',fontSize:11,color:C.fg4,background:C.bgSub}}>Using demo data — extension not connected to Tableau worksheet</div>}
+        <div style={{ flex:1, overflowY:'auto', background:C.bgSub }}>
+          {SCREENS[route] || <Placeholder title={nav?.label}/>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+function mapTableauData(r) {
+  const getNum = (obj, ...keys) => {
+    if (!obj) return null;
+    for (const k of keys) {
+      const v = obj[k];
+      if (v != null && !isNaN(v)) return parseFloat(v);
+    }
+    for (const k of Object.keys(obj)) {
+      const v = obj[k];
+      if (v != null && !isNaN(v)) return parseFloat(v);
+    }
+    return null;
+  };
+
+  return {
+    salesYtdVal: getNum(r.salesYtd),
+    salesYtdDiff: null, salesYtdPct: null,
+    salesMtdVal: getNum(r.salesMtd),
+    salesMtdDiff: null, salesMtdPct: null,
+    wsYtdVal: getNum(r.wsYtd), wsYtdDiff: null, wsYtdPct: null,
+    wsMtdVal: getNum(r.wsMtd), wsMtdDiff: null, wsMtdPct: null,
+    qwsYtdVal: getNum(r.qwsYtd), qwsYtdDiff: null, qwsYtdPct: null,
+    qwsMtdVal: getNum(r.qwsMtd), qwsMtdDiff: null, qwsMtdPct: null,
+    orderbookVal: getNum(r.orderbook), orderbookProjectVal: getNum(r.orderbookChannel),
+    orderbookProjectPct: null, orderbookOutletVal: getNum(r.orderbookOutlet),
+    orderbookOutletPct: null, orderbookUpgradeVal: getNum(r.orderbookUpgrade),
+    orderbookUpgradePct: null,
+    supplyYtdVal: getNum(r.supplyYtd), supplyYtdDiff: null, supplyYtdPct: null,
+    supplyMtdVal: getNum(r.supplyMtd),
+    supplyRcvdVal: getNum(r.supplyRcvd), supplyRcvdDiff: null, supplyRcvdPct: null,
+    invYtdVal: getNum(r.invYtd), invYtdDiff: null, invYtdPct: null,
+    invMtdVal: getNum(r.invMtd), invMtdDiff: null, invMtdPct: null,
+    invCadYtdVal: getNum(r.invCadYtd), invCadYtdDiff: null, invCadYtdPct: null,
+    invCadMtdVal: getNum(r.invCadMtd), invCadMtdDiff: null, invCadMtdPct: null,
+    excessNewVal: getNum(r.excessNew), excessNewQty: null,
+    excessOutletVal: getNum(r.excessOutlet), excessOutletQty: null,
+  };
+}
+
+function getDemoData() {
+  return {
+    salesYtdVal:40317760, salesYtdDiff:-7100000, salesYtdPct:-15.0,
+    salesMtdVal:2000000, salesMtdDiff:717000, salesMtdPct:55.9,
+    wsYtdVal:28100000, wsYtdDiff:-9100000, wsYtdPct:-24.5,
+    wsMtdVal:802000, wsMtdDiff:-7800, wsMtdPct:-1.0,
+    qwsYtdVal:19800000, qwsYtdDiff:-6100000, qwsYtdPct:-23.5,
+    qwsMtdVal:798000, qwsMtdDiff:195000, qwsMtdPct:32.2,
+    orderbookVal:82800000, orderbookProjectVal:7000000, orderbookProjectPct:8.51,
+    orderbookOutletVal:1800000, orderbookOutletPct:2.15, orderbookUpgradeVal:1400000, orderbookUpgradePct:20.54,
+    supplyYtdVal:16000000, supplyYtdDiff:-3700000, supplyYtdPct:-18.7,
+    supplyMtdVal:261000, supplyRcvdVal:1500000, supplyRcvdDiff:-196000, supplyRcvdPct:-11.5,
+    invYtdVal:11600000, invYtdDiff:927000, invYtdPct:8.7,
+    invMtdVal:11600000, invMtdDiff:2500000, invMtdPct:27.5,
+    invCadYtdVal:17800000, invCadYtdDiff:1500000, invCadYtdPct:8.9,
+    invCadMtdVal:17800000, invCadMtdDiff:3700000, invCadMtdPct:25.8,
+    excessNewVal:675000, excessNewQty:'3,666', excessOutletVal:1100000, excessOutletQty:'348',
+  };
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
